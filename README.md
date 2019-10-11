@@ -1,6 +1,6 @@
 # goodreads-to-sqlite
 
-[![PyPI](https://img.shields.io/pypi/v/github-to-sqlite.svg)](https://pypi.org/project/github-to-sqlite/)  # TODO
+[![PyPI](https://img.shields.io/pypi/v/goodreads-to-sqlite.svg)](https://pypi.org/project/goodreads-to-sqlite/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/rixx/goodreads-to-sqlite/blob/master/LICENSE)
 
 Save data from Goodreads to a SQLite database. Can save all your public shelves and reviews, and also the public reviews
@@ -45,3 +45,10 @@ The `auth.json` file is used by default for authentication. You can point to a d
   import can take a couple of minutes.
 - The script currently re-syncs the entire library instead of just looking at newly changed data, to make sure we don't
   lose information after aborted syncs.
+
+## Thanks
+
+This package is heavily inspired by [github-to-sqlite](https://github.com/dogsheep/github-to-sqlite/) by [Simon
+Willison](https://simonwillison.net/2019/Oct/7/dogsheep/).
+
+The terminal recording above was made with [ASCIInema](https://asciinema.org/a/WT6bfxoFP3IlgeX8PO6FHDdDx).
