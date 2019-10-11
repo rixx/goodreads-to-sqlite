@@ -67,7 +67,7 @@ def fetch_books(db, user_id, token):
                 "book_id": book_id,
                 "user_id": user_id,
                 "rating": rating,
-                "text": review.find("body").text,
+                "text": (review.find("body").text or "").strip(),
                 "shelves": [
                     {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
                     for shelf in (review.find("shelves") or [])

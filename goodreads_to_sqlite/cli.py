@@ -1,6 +1,7 @@
 import csv
 import json
 import pathlib
+import sys
 
 import click
 import sqlite_utils
