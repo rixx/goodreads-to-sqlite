@@ -74,11 +74,10 @@ def fetch_books(db, user_id, token):
                 ],
             }
             for key in ("started_at", "read_at", "date_added", "date_updated"):
-                date = maybe_date(review.find(key))
+                date = maybe_date(review.find(key).text)
                 if date:
                     reviews[review_id][key] = date
             progress_bar.update(1)
-
     progress_bar.close()
     save_authors(db, list(authors.values()))
     save_books(db, list(books.values()))
@@ -89,7 +88,7 @@ def fetch_books(db, user_id, token):
 def save_authors(db, authors):
     total = len(authors)
     progress_bar = tqdm(total=total, desc="Saving authors")
-    db["authors"].upsert_all(authors, pk="id", column_order=("id", "name"))
+    db["authors"].upsert_all(authors, pk="id")
     progress_bar.update(total)
     progress_bar.close()
 
@@ -98,23 +97,7 @@ def save_books(db, books):
     authors_table = db.table("authors", pk="id")
     for book in tqdm(books, desc="Saving books  "):
         authors = book.pop("authors", [])
-        db["books"].upsert(
-            book,
-            pk="id",
-            column_order=(
-                "id",
-                "isbn",
-                "isbn13",
-                "title",
-                "series",
-                "series_position",
-                "pages",
-                "publisher",
-                "publication_date",
-                "description",
-                "image_url",
-            ),
-        ).m2m(authors_table, authors)
+        db["books"].upsert(book, pk="id").m2m(authors_table, authors)
 
 
 def save_reviews(db, reviews):
@@ -124,18 +107,8 @@ def save_reviews(db, reviews):
         db["reviews"].upsert(
             review,
             pk="id",
-            column_order=(
-                "id",
-                "book_id",
-                "user_id",
-                "rating",
-                "text",
-                "started_at",
-                "read_at",
-                "date_added",
-                "date_updated",
-            ),
             foreign_keys=(("book_id", "books", "id"), ("user_id", "users", "id")),
+            alter=True,
         ).m2m(shelves_table, shelves)
 
 
@@ -225,11 +198,7 @@ def fetch_user(user_id, token, force_online=False, db=None):
 
 def save_user(db, user):
     save_data = {key: user.get(key) for key in ["id", "name", "username"]}
-    pk = (
-        db["users"]
-        .upsert(save_data, pk="id", column_order=("id", "name", "username"), alter=True)
-        .last_pk
-    )
+    pk = db["users"].upsert(save_data, pk="id", alter=True).last_pk
     for shelf in user.get("shelves", []):
         save_shelf(db, shelf, user["id"])
     return pk
@@ -241,11 +210,7 @@ def save_shelf(db, shelf, user_id):
     return (
         db["shelves"]
         .upsert(
-            save_data,
-            foreign_keys=(("user_id", "users", "id"),),
-            pk="id",
-            column_order=("id", "name"),
-            alter=True,
+            save_data, foreign_keys=(("user_id", "users", "id"),), pk="id", alter=True
         )
         .last_pk
     )
