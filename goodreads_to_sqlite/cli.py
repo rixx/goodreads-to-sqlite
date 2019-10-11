@@ -32,12 +32,11 @@ def auth(auth):
     click.echo(
         "Create a Goodreads developer key at https://www.goodreads.com/api/keys and paste it here:"
     )
-    click.echo()
     personal_token = click.prompt("Developer key")
+    click.echo()
     click.echo(
         "Please enter your Goodreads user ID (numeric) or just paste your Goodreads profile URL."
     )
-    click.echo()
     user_id = click.prompt("User-ID or URL", default=saved_user_id)
     user_id = user_id.strip("/").split("/")[-1].split("-")[0]
     if not user_id.isdigit():
@@ -48,6 +47,7 @@ def auth(auth):
     auth_data["goodreads_user_id"] = user_id
     open(auth, "w").write(json.dumps(auth_data, indent=4) + "\n")
     auth_suffix = (" -a " + auth) if auth != "auth.json" else ""
+    click.echo()
     click.echo(
         "Your authentication credentials have been saved to {}. You can now import books by running".format(
             auth
@@ -73,44 +73,29 @@ def auth(auth):
 )
 @click.argument("username", required=False)
 @click.option(
-    "--load",
-    type=click.Path(file_okay=True, dir_okay=False, allow_dash=True, exists=True),
-    help="Load books from the CSV file available at https://www.goodreads.com/review/import/ instead of the API",
-)
-@click.option(
     "-s",
     "--scrape",
     is_flag=True,
     help="Scrape missing data (like date_read) from the web interface. Slow.",
 )
-def books(db_path, auth, load, username, scrape):
-    "Save books for a specified user, e.g. rixx"
+def books(db_path, auth, username, scrape):
+    """Save books for a specified user, e.g. rixx"""
     db = sqlite_utils.Database(db_path)
     user_id = username if username and username.isdigit() else None
     username = None if user_id else username
-    if load:
-        if not username:
-            click.secho(
-                "Please give your username for a file import to make sure the books are saved for the correct user!",
-                bold=True,
-                fg="red",
-            )
-            sys.exit(-1)
-        books = csv.DictReader(open(load))  # TODO save books from CSV
-    else:
-        if username:
-            user_id = utils.fetch_user_id(username)
-        try:
-            data = json.load(open(auth))
-            token = data["goodreads_personal_token"]
-            user_id = user_id or data["goodreads_user_id"]
-        except (KeyError, FileNotFoundError):
-            click.secho(
-                "Cannot find authentication data, please run goodreads_to_sqlite auth!",
-                bold=True,
-                fg="red",
-            )
-            sys.exit(-1)
-        utils.save_user(db, utils.fetch_user(user_id, token, db=db))
-        # TODO: tqdm
-        utils.fetch_books(db, user_id, token, scrape=scrape)
+    if not user_id:
+        user_id = utils.fetch_user_id(username)
+    try:
+        data = json.load(open(auth))
+        token = data["goodreads_personal_token"]
+        user_id = user_id or data["goodreads_user_id"]
+    except (KeyError, FileNotFoundError):
+        click.secho(
+            "Cannot find authentication data, please run goodreads_to_sqlite auth!",
+            bold=True,
+            fg="red",
+        )
+        sys.exit(-1)
+
+    utils.fetch_user_and_shelves(user_id, token, db=db)
+    utils.fetch_books(db, user_id, token, scrape=scrape)

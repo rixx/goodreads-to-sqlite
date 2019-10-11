@@ -12,12 +12,11 @@ BASE_URL = "https://www.goodreads.com/"
 
 
 def fetch_books(db, user_id, token, scrape=False):
-    # TODO: ignore things with old last_modified, notify via click
-    last_row = list(
-        db["reviews"].rows_where("user_id = ? order by date_updated limit 1", [user_id])
-    )
-    last_timestamp = maybe_date(last_row[0]["date_updated"]) if last_row else None
+    """Fetches a user's books and reviews from the public Goodreads API.
 
+    Technically we are rate-limited to one request per second, but since we are not
+    running in parallel, and the Goodreads API responds way slower than that, we are
+    reliably in the clear."""
     url = BASE_URL + "review/list/{}.xml".format(user_id)
     params = {
         "key": "uop3BTpOxtYgCBy5Urwjqg",
@@ -60,24 +59,7 @@ def fetch_books(db, user_id, token, scrape=False):
             books[book_id] = _get_book_from_data(book_data, book_authors)
 
             review_id = review.find("id").text
-            rating = review.find("rating").text
-            if rating:
-                rating = int(rating) or None
-            reviews[review_id] = {
-                "id": review_id,
-                "book_id": book_id,
-                "user_id": user_id,
-                "rating": rating,
-                "text": (review.find("body").text or "").strip(),
-                "shelves": [
-                    {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
-                    for shelf in (review.find("shelves") or [])
-                ],
-            }
-            for key in ("started_at", "read_at", "date_added", "date_updated"):
-                date = maybe_date(review.find(key).text)
-                if date:
-                    reviews[review_id][key] = date
+            reviews[review_id] = _get_review_from_data(review)
             progress_bar.update(1)
     progress_bar.close()
 
@@ -87,7 +69,6 @@ def fetch_books(db, user_id, token, scrape=False):
     save_authors(db, list(authors.values()))
     save_books(db, list(books.values()))
     save_reviews(db, list(reviews.values()))
-    return review_data.attrib
 
 
 def scrape_data(user_id, reviews):
@@ -205,13 +186,40 @@ def _get_book_from_data(book, authors):
     }
 
 
-def fetch_user_id(username, force_online=False, db=None):
+def _get_review_from_data(review, user_id):
+    rating = review.find("rating").text
+    rating = int(rating) or None if rating else None
+    result = {
+        "id": review.find("id").text,
+        "book_id": review.find("book").find("id").text,
+        "user_id": user_id,
+        "rating": rating,
+        "text": (review.find("body").text or "").strip(),
+        "shelves": [
+            {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
+            for shelf in (review.find("shelves") or [])
+        ],
+    }
+    for key in ("started_at", "read_at", "date_added", "date_updated"):
+        date = maybe_date(review.find(key).text)
+        if date:
+            result[key] = date
+    return result
+
+
+def fetch_user_id(username, force_online=False, db=None) -> str:
+    """We can look up a user ID given a (public vanity) username.
+
+    We go to that profile page, and observe the redirect target. If we have the
+    user in question in our database, we just return the known value, since
+    user IDs are assumed to be stable. The vanity URL redirects to a URL ending
+    in <user_id>-<username>."""
     if not force_online and db:
         user = db["users"].get(username=username)
         if user:
             return user.id
-    url = BASE_URL + username
-    response = requests.get(url)
+    click.echo("Fetching user details.")
+    response = requests.get(BASE_URL + username)
     response.raise_for_status()
     if response.request.url == url:
         raise Exception("Cannot find user ID for username {}".format(username))
@@ -219,13 +227,13 @@ def fetch_user_id(username, force_online=False, db=None):
     return last_part.split("-")[0]
 
 
-def fetch_user(user_id, token, force_online=False, db=None):
-    if not force_online and db:
-        with suppress(TypeError):
-            user = db["users"].get(id=user_id)
-            shelves = db["shelves"].rows_where("user_id = ?", [user_id])
-            if user and all(user.values()) and shelves:
-                return user
+def fetch_user_and_shelves(user_id, token, db) -> dict:
+    with suppress(TypeError):
+        user = db["users"].get(id=user_id)
+        shelves = db["shelves"].rows_where("user_id = ?", [user_id])
+        if user and all(user.values()) and shelves:
+            user["shelves"] = shelves
+            return user
     response = requests.get(
         BASE_URL + "user/show/{}.xml".format(user_id), {"key": token}
     )
@@ -233,7 +241,7 @@ def fetch_user(user_id, token, force_online=False, db=None):
     to_root = ET.fromstring(response.content.decode())
     user = to_root.find("user")
     shelves = user.find("user_shelves")
-    return {
+    user = {
         "id": user.find("id").text,
         "name": user.find("name").text,
         "username": user.find("user_name").text,
@@ -242,6 +250,7 @@ def fetch_user(user_id, token, force_online=False, db=None):
             for shelf in shelves
         ],
     }
+    save_user(db, user)
 
 
 def save_user(db, user):
