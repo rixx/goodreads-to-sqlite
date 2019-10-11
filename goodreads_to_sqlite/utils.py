@@ -59,11 +59,14 @@ def fetch_books(db, user_id, token):
             books[book_id] = _get_book_from_data(book_data, book_authors)
 
             review_id = review.find("id").text
+            rating = review.find("rating").text
+            if rating:
+                rating = int(rating) or None
             reviews[review_id] = {
                 "id": review_id,
                 "book_id": book_id,
                 "user_id": user_id,
-                "rating": review.find("rating").text,
+                "rating": rating,
                 "text": review.find("body").text,
                 "started_at": maybe_date(review.find("started_at").text),
                 "read_at": maybe_date(review.find("read_at").text),
