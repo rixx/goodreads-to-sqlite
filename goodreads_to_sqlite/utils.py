@@ -2,6 +2,7 @@ import datetime as dt
 import xml.etree.ElementTree as ET
 from contextlib import suppress
 
+import bs4
 import click
 import dateutil.parser
 import requests
@@ -10,7 +11,7 @@ from tqdm import tqdm
 BASE_URL = "https://www.goodreads.com/"
 
 
-def fetch_books(db, user_id, token):
+def fetch_books(db, user_id, token, scrape=False):
     # TODO: ignore things with old last_modified, notify via click
     last_row = list(
         db["reviews"].rows_where("user_id = ? order by date_updated limit 1", [user_id])
@@ -79,10 +80,57 @@ def fetch_books(db, user_id, token):
                     reviews[review_id][key] = date
             progress_bar.update(1)
     progress_bar.close()
+
+    if scrape is True:
+        scrape_data(user_id, reviews)
+
     save_authors(db, list(authors.values()))
     save_books(db, list(books.values()))
     save_reviews(db, list(reviews.values()))
     return review_data.attrib
+
+
+def scrape_data(user_id, reviews):
+    relevant_ids = {
+        review_id
+        for review_id, review in reviews.items()
+        if "read_at" not in review
+        and any(shelf["name"] == "read" for shelf in review["shelves"])
+    }
+    url = BASE_URL + "review/list/{}".format(user_id)
+    params = {
+        "utf8": "✓",
+        "shelf": "read",
+        "per_page": "100",  # Maximum allowed page size
+        "sort": "date_updated",
+        "page": 0,
+    }
+    date_counter = 0
+    progress_bar = None
+    while True:
+        params["page"] += 1
+        response = requests.get(url, data=params)
+        response.raise_for_status()
+        soup = bs4.BeautifulSoup(response.content.decode(), "html.parser")
+        if progress_bar is None:
+            read_shelf = soup.select("a.selectedShelf")[0].text
+            total = int(read_shelf[read_shelf.find("(") :].strip("()"))
+            progress_bar = tqdm(desc="Scraping books", total=total)
+        rows = soup.select("table#books tbody tr")
+        for row in rows:
+            review_id = row.attrs["id"][len("review_") :]
+            if review_id in relevant_ids:
+                date = row.select(".date_read_value")
+                if date:
+                    reviews[review_id]["read_at"] = dateutil.parser.parse(
+                        date[0].text, default=dt.date(2019, 1, 1)
+                    )
+                    date_counter += 1
+            progress_bar.update(1)
+        if not soup.select("a[rel=next]") or progress_bar.n >= progress_bar.total:
+            break
+    progress_bar.close()
+    click.echo("Found {} previously missing read dates.".format(date_counter))
 
 
 def save_authors(db, authors):

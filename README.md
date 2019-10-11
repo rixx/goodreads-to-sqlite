@@ -23,13 +23,22 @@ Run this command and paste in your token and your profile URL:
 This will create a file called `auth.json` in your current directory containing the required value. To save the file at
 a different path or filename, use the `--auth=myauth.json` option.
 
-## Retrieving books for a user
+## Retrieving books
 
-The `books` command retrieves all of the books and reviews/ratings belonging to a specified user. If you leave out the
-user, the books for your own account will be fetched. The user will have to be either the user ID (the numerical part of
-a user's profile URL), or the name of their vanity URL.
+The `books` command retrieves all of the books and reviews/ratings belonging to you:
 
     $ goodreads-to-sqlite books goodreads.db rixx
+
+You can specify the user to target, to fetch books on public shelves of other users. Please provide either the user ID
+(the numerical part of a user's profile URL), or the name of their vanity URL.
+
+    $ goodreads-to-sqlite books goodreads.db rixx
+
+Sometime in 2018 or 2017, Goodreads started leaving out some "read_at" timestamps in their API. If you want to include
+these datapoints regardless, you can add the `--scrape` parameter, and the dates will be scraped from the website.
+This will take a bit longer, by maybe a minute depending on the size of your library.
+
+    $ goodreads-to-sqlite books goodreads.db --scrape
 
 The `auth.json` file is used by default for authentication. You can point to a different location of `auth.json` using
 `-a`:
@@ -39,7 +48,6 @@ The `auth.json` file is used by default for authentication. You can point to a d
 ## Limitations
 
 - The order of books in shelves is not exposed in the API, so we cannot determine the order of the to-read list.
-- The API does not expose the dates of multiple reads of a book.
 - Goodreads also offers a CSV export, which is currently not supported as an input format.
 - Since the Goodreads API is a bit slow, and we are restricted to one request per second, for larger libraries the
   import can take a couple of minutes.

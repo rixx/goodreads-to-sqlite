@@ -44,6 +44,7 @@ setup(
         goodreads-to-sqlite=goodreads_to_sqlite.cli:cli
     """,
     install_requires=[
+        "beautifulsoup4~=4.8",
         "click",
         "python-dateutil",
         "requests",

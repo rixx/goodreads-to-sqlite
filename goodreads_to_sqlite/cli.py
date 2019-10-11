@@ -77,7 +77,13 @@ def auth(auth):
     type=click.Path(file_okay=True, dir_okay=False, allow_dash=True, exists=True),
     help="Load books from the CSV file available at https://www.goodreads.com/review/import/ instead of the API",
 )
-def books(db_path, auth, load, username):
+@click.option(
+    "-s",
+    "--scrape",
+    is_flag=True,
+    help="Scrape missing data (like date_read) from the web interface. Slow.",
+)
+def books(db_path, auth, load, username, scrape):
     "Save books for a specified user, e.g. rixx"
     db = sqlite_utils.Database(db_path)
     user_id = username if username and username.isdigit() else None
@@ -107,4 +113,4 @@ def books(db_path, auth, load, username):
             sys.exit(-1)
         utils.save_user(db, utils.fetch_user(user_id, token, db=db))
         # TODO: tqdm
-        utils.fetch_books(db, user_id, token, commit=True)
+        utils.fetch_books(db, user_id, token, scrape=scrape)
