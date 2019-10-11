@@ -7,15 +7,17 @@ import dateutil.parser
 import requests
 from tqdm import tqdm
 
+BASE_URL = "https://www.goodreads.com/"
 
-def fetch_books(db, user_id, token, commit=True):
+
+def fetch_books(db, user_id, token):
     # TODO: ignore things with old last_modified, notify via click
     last_row = list(
         db["reviews"].rows_where("user_id = ? order by date_updated limit 1", [user_id])
     )
     last_timestamp = maybe_date(last_row[0]["date_updated"]) if last_row else None
 
-    url = "https://www.goodreads.com/review/list/{}.xml".format(user_id)
+    url = BASE_URL + "review/list/{}.xml".format(user_id)
     params = {
         "key": "uop3BTpOxtYgCBy5Urwjqg",
         "v": "2",
@@ -36,55 +38,48 @@ def fetch_books(db, user_id, token, commit=True):
         response.raise_for_status()
         root = ET.fromstring(response.content.decode())
         review_data = root.find("reviews")
+        end = int(review_data.attrib["end"])
+        total = int(review_data.attrib["total"])
+
         if progress_bar is None:
             progress_bar = tqdm(
                 desc="Fetching books", total=int(review_data.attrib.get("total"))
             )
         for review in review_data:
-            date_updated = maybe_date(review.find("date_updated").text)
-            book_authors = []
-            if last_timestamp and date_updated and date_updated < last_timestamp:
-                break
             book_data = review.find("book")
+            book_authors = []
 
             for author in book_data.find("authors"):
                 author_id = author.find("id").text
-                if author_id not in authors:
-                    author = _get_author_from_data(author)
-                    authors[author_id] = author
-                    book_authors.append(author)
+                author = _get_author_from_data(author)
+                authors[author_id] = author
+                book_authors.append(author)
 
             book_id = book_data.find("id").text
-            if book_id not in books:
-                books[book_id] = _get_book_from_data(book_data, book_authors)
+            books[book_id] = _get_book_from_data(book_data, book_authors)
 
             review_id = review.find("id").text
-            if review_id not in reviews:
-                reviews[review_id] = {
-                    "id": review_id,
-                    "book_id": book_id,
-                    "user_id": user_id,
-                    "rating": review.find("rating").text,
-                    "text": review.find("body").text,
-                    "started_at": maybe_date(review.find("started_at").text),
-                    "read_at": maybe_date(review.find("read_at").text),
-                    "date_added": maybe_date(review.find("date_added").text),
-                    "date_updated": date_updated,
-                    "shelves": [
-                        {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
-                        for shelf in (review.find("shelves") or [])
-                    ],
-                }
+            reviews[review_id] = {
+                "id": review_id,
+                "book_id": book_id,
+                "user_id": user_id,
+                "rating": review.find("rating").text,
+                "text": review.find("body").text,
+                "started_at": maybe_date(review.find("started_at").text),
+                "read_at": maybe_date(review.find("read_at").text),
+                "date_added": maybe_date(review.find("date_added").text),
+                "date_updated": maybe_date(review.find("date_updated").text),
+                "shelves": [
+                    {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
+                    for shelf in (review.find("shelves") or [])
+                ],
+            }
             progress_bar.update(1)
 
-        end = int(review_data.attrib["end"])
-        total = int(review_data.attrib["total"])
-
     progress_bar.close()
-    if commit:
-        save_authors(db, list(authors.values()))
-        save_books(db, list(books.values()))
-        save_reviews(db, list(reviews.values()))
+    save_authors(db, list(authors.values()))
+    save_books(db, list(books.values()))
+    save_reviews(db, list(reviews.values()))
     return review_data.attrib
 
 
@@ -151,21 +146,16 @@ def _get_book_from_data(book, authors):
     title = book.find("title").text
     title_series = book.find("title_without_series").text
     if title != title_series:
-        try:
-            series_with_position = title[len(title_series) :].strip(" ()")
-            if "#" in series_with_position:
-                series, series_position = series_with_position.split("#", maxsplit=1)
-            elif "Book" in series_with_position:
-                series, series_position = series_with_position.split("Book", maxsplit=1)
-            else:
-                series = series_with_position
-                series_position = ""
-            series = series.strip(", ")
-            series_position = series_position.strip(", #")
-        except Exception:
-            import pdb
-
-            pdb.set_trace()
+        series_with_position = title[len(title_series) :].strip(" ()")
+        if "#" in series_with_position:
+            series, series_position = series_with_position.split("#", maxsplit=1)
+        elif "Book" in series_with_position:
+            series, series_position = series_with_position.split("Book", maxsplit=1)
+        else:
+            series = series_with_position
+            series_position = ""
+        series = series.strip(", ")
+        series_position = series_position.strip(", #")
         title = title_series
     publication_year = book.find("publication_year").text
     publication_date = None
@@ -196,7 +186,7 @@ def fetch_user_id(username, force_online=False, db=None):
         user = db["users"].get(username=username)
         if user:
             return user.id
-    url = "https://www.goodreads.com/" + username
+    url = BASE_URL + username
     response = requests.get(url)
     response.raise_for_status()
     if response.request.url == url:
@@ -213,7 +203,7 @@ def fetch_user(user_id, token, force_online=False, db=None):
             if user and all(user.values()) and shelves:
                 return user
     response = requests.get(
-        "https://www.goodreads.com/user/show/{}.xml".format(user_id), {"key": token}
+        BASE_URL + "user/show/{}.xml".format(user_id), {"key": token}
     )
     response.raise_for_status()
     to_root = ET.fromstring(response.content.decode())
