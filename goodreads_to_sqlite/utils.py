@@ -68,15 +68,15 @@ def fetch_books(db, user_id, token):
                 "user_id": user_id,
                 "rating": rating,
                 "text": review.find("body").text,
-                "started_at": maybe_date(review.find("started_at").text),
-                "read_at": maybe_date(review.find("read_at").text),
-                "date_added": maybe_date(review.find("date_added").text),
-                "date_updated": maybe_date(review.find("date_updated").text),
                 "shelves": [
                     {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
                     for shelf in (review.find("shelves") or [])
                 ],
             }
+            for key in ("started_at", "read_at", "date_added", "date_updated"):
+                date = maybe_date(review.find(key))
+                if date:
+                    reviews[review_id][key] = date
             progress_bar.update(1)
 
     progress_bar.close()
