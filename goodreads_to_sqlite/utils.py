@@ -229,14 +229,17 @@ def fetch_user_id(username, force_online=False, db=None) -> str:
         if user:
             return user.id
     click.echo("Fetching user details.")
-    response = requests.get(
-        username if username.startswith("http") else BASE_URL + username
-    )
+    url = username if username.startswith("http") else BASE_URL + username
+    response = requests.get(url)
     response.raise_for_status()
-    last_part = response.request.url.strip("/").split("/")[-1]
-    result = last_part.split("-")[0]
+    if "/author/" in username:
+        soup = bs4.BeautifulSoup(response.content.decode(), "html.parser")
+        url = soup.select("link[rel=alternate][title=Bookshelves]")[0].attrs["href"]
+    else:
+        url = response.request.url
+    result = url.strip("/").split("/")[-1].split("-")[0]
     if not result.isdigit():
-        error("Cannot find user ID for username {}".format(username))
+        error("Cannot find user ID for {}".format(response.request.url))
     return result
 
 
