@@ -223,12 +223,15 @@ def fetch_user_id(username, force_online=False, db=None) -> str:
         if user:
             return user.id
     click.echo("Fetching user details.")
-    response = requests.get(BASE_URL + username)
+    response = requests.get(
+        username if username.startswith("http") else BASE_URL + username
+    )
     response.raise_for_status()
-    if response.request.url == url:
-        raise Exception("Cannot find user ID for username {}".format(username))
     last_part = response.request.url.strip("/").split("/")[-1]
-    return last_part.split("-")[0]
+    result = last_part.split("-")[0]
+    if not result.isdigit():
+        raise Exception("Cannot find user ID for username {}".format(username))
+    return result
 
 
 def fetch_user_and_shelves(user_id, token, db) -> dict:
