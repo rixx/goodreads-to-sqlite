@@ -19,7 +19,7 @@ def fetch_books(db, user_id, token, scrape=False):
     reliably in the clear."""
     url = BASE_URL + "review/list/{}.xml".format(user_id)
     params = {
-        "key": "uop3BTpOxtYgCBy5Urwjqg",
+        "key": token,
         "v": "2",
         "per_page": "200",
         "sort": "date_updated",
