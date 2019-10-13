@@ -1,4 +1,5 @@
 import datetime as dt
+import sys
 import xml.etree.ElementTree as ET
 from contextlib import suppress
 
@@ -9,6 +10,11 @@ import requests
 from tqdm import tqdm
 
 BASE_URL = "https://www.goodreads.com/"
+
+
+def error(message):
+    click.secho(message, bold=True, fg="red")
+    sys.exit(-1)
 
 
 def fetch_books(db, user_id, token, scrape=False):
@@ -230,7 +236,7 @@ def fetch_user_id(username, force_online=False, db=None) -> str:
     last_part = response.request.url.strip("/").split("/")[-1]
     result = last_part.split("-")[0]
     if not result.isdigit():
-        raise Exception("Cannot find user ID for username {}".format(username))
+        error("Cannot find user ID for username {}".format(username))
     return result
 
 
@@ -248,6 +254,8 @@ def fetch_user_and_shelves(user_id, token, db) -> dict:
     to_root = ET.fromstring(response.content.decode())
     user = to_root.find("user")
     shelves = user.find("user_shelves")
+    if not shelves:
+        error("This user's shelves and reviews are private, and cannot be fetched.")
     user = {
         "id": user.find("id").text,
         "name": user.find("name").text,

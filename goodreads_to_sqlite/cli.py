@@ -86,12 +86,9 @@ def books(db_path, auth, username, scrape):
         token = data["goodreads_personal_token"]
         user_id = data["goodreads_user_id"]
     except (KeyError, FileNotFoundError):
-        click.secho(
-            "Cannot find authentication data, please run goodreads_to_sqlite auth!",
-            bold=True,
-            fg="red",
+        utils.error(
+            "Cannot find authentication data, please run goodreads_to_sqlite auth!"
         )
-        sys.exit(-1)
 
     if username:
         user_id = username if username.isdigit() else utils.fetch_user_id(username)
