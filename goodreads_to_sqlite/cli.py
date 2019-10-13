@@ -81,14 +81,10 @@ def auth(auth):
 def books(db_path, auth, username, scrape):
     """Save books for a specified user, e.g. rixx"""
     db = sqlite_utils.Database(db_path)
-    user_id = username if username and username.isdigit() else None
-    username = None if user_id else username
-    if not user_id:
-        user_id = utils.fetch_user_id(username)
     try:
         data = json.load(open(auth))
         token = data["goodreads_personal_token"]
-        user_id = user_id or data["goodreads_user_id"]
+        user_id = data["goodreads_user_id"]
     except (KeyError, FileNotFoundError):
         click.secho(
             "Cannot find authentication data, please run goodreads_to_sqlite auth!",
@@ -96,6 +92,9 @@ def books(db_path, auth, username, scrape):
             fg="red",
         )
         sys.exit(-1)
+
+    if username:
+        user_id = username if username.isdigit() else utils.fetch_user_id(username)
 
     utils.fetch_user_and_shelves(user_id, token, db=db)
     utils.fetch_books(db, user_id, token, scrape=scrape)

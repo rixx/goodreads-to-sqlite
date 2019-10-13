@@ -59,7 +59,7 @@ def fetch_books(db, user_id, token, scrape=False):
             books[book_id] = _get_book_from_data(book_data, book_authors)
 
             review_id = review.find("id").text
-            reviews[review_id] = _get_review_from_data(review)
+            reviews[review_id] = _get_review_from_data(review, user_id)
             progress_bar.update(1)
     progress_bar.close()
 
@@ -196,7 +196,11 @@ def _get_review_from_data(review, user_id):
         "rating": rating,
         "text": (review.find("body").text or "").strip(),
         "shelves": [
-            {"name": shelf.attrib.get("name"), "id": shelf.attrib.get("id")}
+            {
+                "name": shelf.attrib.get("name"),
+                "id": shelf.attrib.get("id"),
+                "user_id": user_id,
+            }
             for shelf in (review.find("shelves") or [])
         ],
     }
