@@ -1,6 +1,6 @@
 ## v0.4
 
-- Add this changelog.
+- Add this changelog. (d66b61f)
 - Add initial progress message to avoid impression of idleness. (cd75582)
 
 ## v0.3

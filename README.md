@@ -12,6 +12,8 @@ and shelves of other people.
 
     $ pip install goodreads-to-sqlite
 
+Add the `-U` flag to update. Change notes can be found in the ``CHANGELOG`` file, next to this README.
+
 ## Authentication
 
 Create a Goodreads developer token: https://www.goodreads.com/api/keys
