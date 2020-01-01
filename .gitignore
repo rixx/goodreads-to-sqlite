@@ -10,3 +10,4 @@ venv
 auth.json
 build/
 dist/
+*.bak
