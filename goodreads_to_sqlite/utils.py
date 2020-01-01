@@ -250,6 +250,7 @@ def fetch_user_and_shelves(user_id, token, db) -> dict:
         if user and all(user.values()) and shelves:
             user["shelves"] = shelves
             return user
+    click.secho("Fetching shelves.")
     response = requests.get(
         BASE_URL + "user/show/{}.xml".format(user_id), {"key": token}
     )

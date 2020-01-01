@@ -90,6 +90,7 @@ def books(db_path, auth, username, scrape):
             "Cannot find authentication data, please run goodreads_to_sqlite auth!"
         )
 
+    click.secho(f"Read credentials for user ID {user_id}.", fg="green")
     if username:
         user_id = username if username.isdigit() else utils.fetch_user_id(username)
 
