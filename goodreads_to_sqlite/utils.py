@@ -123,7 +123,7 @@ def scrape_data(user_id, reviews):
 def save_authors(db, authors):
     total = len(authors)
     progress_bar = tqdm(total=total, desc="Saving authors")
-    db["authors"].upsert_all(authors, pk="id")
+    db["authors"].insert_all(authors, pk="id", replace=True)
     progress_bar.update(total)
     progress_bar.close()
 
@@ -132,18 +132,19 @@ def save_books(db, books):
     authors_table = db.table("authors", pk="id")
     for book in tqdm(books, desc="Saving books  "):
         authors = book.pop("authors", [])
-        db["books"].upsert(book, pk="id").m2m(authors_table, authors)
+        db["books"].insert(book, pk="id", replace=True).m2m(authors_table, authors)
 
 
 def save_reviews(db, reviews):
     shelves_table = db.table("shelves", pk="id")
     for review in tqdm(reviews, desc="Saving reviews"):
         shelves = review.pop("shelves", [])
-        db["reviews"].upsert(
+        db["reviews"].insert(
             review,
             pk="id",
             foreign_keys=(("book_id", "books", "id"), ("user_id", "users", "id")),
             alter=True,
+            replace=True,
         ).m2m(shelves_table, shelves)
 
 
@@ -274,7 +275,7 @@ def fetch_user_and_shelves(user_id, token, db) -> dict:
 
 def save_user(db, user):
     save_data = {key: user.get(key) for key in ["id", "name", "username"]}
-    pk = db["users"].upsert(save_data, pk="id", alter=True).last_pk
+    pk = db["users"].insert(save_data, pk="id", alter=True, replace=True).last_pk
     for shelf in user.get("shelves", []):
         save_shelf(db, shelf, user["id"])
     return pk
@@ -285,8 +286,8 @@ def save_shelf(db, shelf, user_id):
     save_data["user_id"] = user_id
     return (
         db["shelves"]
-        .upsert(
-            save_data, foreign_keys=(("user_id", "users", "id"),), pk="id", alter=True
+        .insert(
+            save_data, foreign_keys=(("user_id", "users", "id"),), pk="id", alter=True, replace=True
         )
         .last_pk
     )
