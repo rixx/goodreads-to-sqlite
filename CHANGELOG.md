@@ -1,3 +1,7 @@
+## v0.5
+
+- Upgrade dependencies. (9bc9f17)
+
 ## v0.4
 
 - Add this changelog. (d66b61f)
