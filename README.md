@@ -29,9 +29,14 @@ a different path or filename, use the `--auth=myauth.json` option.
 
 The `books` command retrieves all of the books and reviews/ratings belonging to you:
 
-    $ goodreads-to-sqlite books goodreads.db rixx
+    $ goodreads-to-sqlite books goodreads.db
+    
+Note that your Goodreads profile must be public in order for this to work - if
+it is not already, you can enable this by visiting
+https://www.goodreads.com/user/edit?ref=nav_profile_settings and selecting
+"anyone (including search engines)" within the "Settings" tab.
 
-You can specify the user to target, to fetch books on public shelves of other users. Please provide either the user ID
+You can also specify the user to target, to fetch books on public shelves of other users. Please provide either the user ID
 (the numerical part of a user's profile URL), or the name of their vanity URL.
 
     $ goodreads-to-sqlite books goodreads.db rixx
